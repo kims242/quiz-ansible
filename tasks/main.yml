@@ -73,9 +73,10 @@
   mysql_user:
     name: root
     password: "{{ mysql_root_password }}"  
-    host: localhost
-    priv: "*.*:ALL"
+    host_all: yes
+    priv: "*.*:ALL,GRANT"
     state: present
+  ignore_errors: yes 
 
 - name: Suppression des utilisateurs anonymes
   mysql_user:
