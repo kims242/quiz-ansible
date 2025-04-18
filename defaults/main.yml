@@ -1,3 +1,7 @@
 #SPDX-License-Identifier: MIT-0
 ---
-# defaults file for ansible-role-quiz
+app_repo: "https://github.com/kims242/quiz-ansible"
+app_dest: "/opt/quiz-ansible"
+node_version: "18.x"
+app_port: 3000
+# defaults file for ansible-role-quizz

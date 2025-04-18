@@ -1,3 +1,142 @@
-#SPDX-License-Identifier: MIT-0
 ---
-# tasks file for ansible-role-quiz
+- name: Mise à jour du système (Ubuntu)
+  apt:
+    update_cache: yes
+  when: ansible_os_family == 'Debian'
+
+- name: Mise à jour du système (Rocky Linux)
+  dnf:
+    update_cache: yes
+  when: ansible_os_family == 'RedHat'
+
+- name: Installation des paquets nécessaires (Ubuntu)
+  apt:
+    name:
+      - apache2
+      - php
+      - libapache2-mod-php
+      - php-mysql
+      - mariadb-server
+      - wget
+      - unzip
+    state: present
+    install_recommends: no
+  when: ansible_os_family == 'Debian'
+  notify: Restart Apache  # Notifie le handler pour redémarrer Apache
+
+- name: Installation des paquets nécessaires (Rocky Linux)
+  dnf:
+    name:
+      - httpd
+      - php
+      - php-mysqlnd
+      - mariadb-server
+      - wget
+      - unzip
+    state: present
+  when: ansible_os_family == 'RedHat'
+  notify: Restart Apache  # Notifie le handler pour redémarrer Apache
+
+- name: Suppression de la page par défaut d'Apache
+  file:
+    path: /var/www/html/index.html
+    state: absent
+  notify: Restart Apache
+
+- name: Démarrage et activation d'Apache
+  service:
+    name: apache2
+    state: restarted
+    enabled: yes
+  when: ansible_os_family == 'Debian'
+
+- name: Démarrage et activation d'Apache
+  ansible.builtin.service:
+    name: httpd
+    state: restarted
+    enabled: yes
+  when: ansible_os_family == 'RedHat'
+
+- name: Démarrage et activation de MariaDB
+  service:
+    name: mariadb
+    state: started
+    enabled: yes
+
+- name: Attente du démarrage de MariaDB
+  wait_for:
+    host: localhost
+    port: 3306
+    timeout: 60
+
+- name: Sécurisation de MariaDB
+  mysql_user:
+    name: root
+    password: "{{ mysql_root_password }}"  
+    host: localhost
+    priv: "*.*:ALL"
+    state: present
+
+- name: Suppression des utilisateurs anonymes
+  mysql_user:
+    name: ''
+    host: '%'
+    state: absent
+    login_user: root
+    login_password: "{{ mysql_root_password }}"  # Utilisation de la variable
+
+- name: Suppression de la base de données test
+  mysql_db:
+    name: test
+    state: absent
+    login_user: root
+    login_password: "{{ mysql_root_password }}"  # Utilisation de la variable
+
+- name: Création de la base de données WordPress
+  mysql_db:
+    name: "{{ wordpress_db_name }}"  # Utilisation de la variable
+    state: present
+    login_user: root
+    login_password: "{{ mysql_root_password }}"  # Utilisation de la variable
+    encoding: utf8
+
+- name: Création de l'utilisateur WordPress
+  mysql_user:
+    name: "{{ wordpress_db_user }}"  # Utilisation de la variable
+    password: "{{ wordpress_db_password }}"  # Utilisation de la variable
+    host: localhost
+    priv: '{{ wordpress_db_name }}.*:ALL'  # Utilisation de la variable
+    login_user: root
+    login_password: "{{ mysql_root_password }}"  # Utilisation de la variable
+    state: present
+
+- name: Téléchargement de WordPress
+  get_url:
+    url: https://wordpress.org/latest.zip
+    dest: /tmp/latest.zip
+
+- name: Décompression de WordPress
+  unarchive:
+    src: /tmp/latest.zip
+    dest: /tmp
+    remote_src: yes
+
+- name: Copie des fichiers WordPress
+  synchronize:
+    src: /tmp/wordpress/
+    dest: /var/www/html/
+    recursive: yes
+    owner: www-data # Pour Ubuntu
+    group: www-data # Pour Ubuntu
+  when: ansible_os_family == 'Debian'
+  notify: Restart Apache
+
+- name: Copie des fichiers WordPress
+  synchronize:
+    src: /tmp/wordpress/
+    dest: /var/www/html/
+    recursive: yes
+    owner: apache # Pour Rocky Linux
+    group: apache # Pour Rocky Linux
+  when: ansible_os_family == 'RedHat'
+  notify: Restart Apache

@@ -1,3 +1,6 @@
-#SPDX-License-Identifier: MIT-0
+
 ---
-# vars file for ansible-role-quiz
+mysql_root_password: "Wtmfl123"
+wordpress_db_password: "Mrfranklin"
+wordpress_db_user: "Youness"
+wordpress_db_name: "ansible"
